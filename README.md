@@ -1,5 +1,5 @@
 # JOS
-nankai university 1711427
+1711427
 
 work:JOS lab 1-5
 
