@@ -1,0 +1,32 @@
+1. uintptr_t 使用了* c中指针都是虚拟地址
+
+2.
+Entry	Base Virtual Address	Points to (logically)
+1023	0xffc00000	        Page table for top 4MB of phys memory
+1022	0xff800000	        …
+.	?	                ？
+
+960	0xf0000000KERNBASE      kernel space
+959	0xefc00000              bootstack
+957	0xef400000UVPT          kern_pgidr
+956	0xef000000UPAGES        pages
+.	?	                ？
+0	0x00000000	        same as 960
+
+3. 因为用户程序不可随意修改内核代码和数据，会破坏内核
+页表可以设置权限位，PTE_U不是1用户无权限读写
+分页机制
+
+4. OS用一个4MB的UPAGES存放所有页的PageInfo结构体信息，每个结构体8B，512K个，所以可以有512K个物理页，每个物理页4KB，物理内存2GB
+
+5. 1个page_dir 1024个page_table，4KB，pages的4MB，约8MB，8196KB
+
+6. kern/entry.S中jmp *%eax完成跳转需要重新设置EIP的值为eax中的，地址大于KERNBASE
+relocated部分代码主要设置栈指针以及调用kern/init.c
+由于在kern/entrypgdir.c中将0~4MB和KERNBASE~KERNBASE+4MB的虚拟地址都映射到了0~4MB的物理地址上，因此无论EIP在高位和低位都能执行
+
+challenge:
+在kern/monitor.c中写，在.h中定义好。
+在commands中加入{ "showmappings", "Display information ablout physical page mappings", mon_showmappings}
+仿照lab1的函数mon_backtrace(int argc, char **argv, struct Trapframe *tf)，先判断地址是否符合要求，再用一个for循环在地址间显示物理页面映射以及映射在虚拟地址位置的页所对应的权限位。
+

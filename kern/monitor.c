@@ -10,6 +10,8 @@
 #include <kern/console.h>
 #include <kern/monitor.h>
 #include <kern/kdebug.h>
+#include <kern/pmap.h>
+
 
 #define CMDBUF_SIZE	80	// enough for one VGA text line
 
@@ -24,6 +26,7 @@ struct Command {
 static struct Command commands[] = {
 	{ "help", "Display this list of commands", mon_help },
 	{ "kerninfo", "Display information about the kernel", mon_kerninfo },
+	{ "showmappings", "Display information ablout physical page mappings", mon_showmappings}
 };
 #define NCOMMANDS (sizeof(commands)/sizeof(commands[0]))
 
@@ -125,11 +128,6 @@ monitor(struct Trapframe *tf)
 
 	cprintf("Welcome to the JOS kernel monitor!\n");
 	cprintf("Type 'help' for a list of commands.\n");
-	int x=1,y=3,z=4;
-	cprintf("x %d,y %d,z %d\n",x,y,z);
-	unsigned int i=0x00646c72;
-	cprintf("H%x Wo%s",57616,&i);
-	cprintf("x%d,y%d",3);
 	while (1) {
 		buf = readline("K> ");
 		if (buf != NULL)
@@ -137,3 +135,46 @@ monitor(struct Trapframe *tf)
 				break;
 	}
 }
+
+int
+mon_showmappings(int argc, char **argv, struct Trapframe *tf)
+{
+    if (argc != 3) {
+        cprintf("Require 2 virtual address.\n");
+        return -1;
+    }
+    char *errChar;
+    uintptr_t start_addr = strtol(argv[1], &errChar, 16);
+    if (*errChar) {
+        cprintf("Invalid virtual address: %s.\n", argv[1]);
+        return -1;
+    }
+    uintptr_t end_addr = strtol(argv[2], &errChar, 16);
+    if (*errChar) {
+        cprintf("Invalid virtual address: %s.\n", argv[2]);
+        return -1;
+    }
+    if (start_addr > end_addr) {
+        cprintf("Address 1 must be lower than address 2\n");
+        return -1;
+    }
+    
+    start_addr = ROUNDDOWN(start_addr, PGSIZE);
+    end_addr = ROUNDUP(end_addr, PGSIZE);
+
+    uintptr_t cur_addr = start_addr;
+    while (cur_addr <= end_addr) {
+        pte_t *cur_pte = pgdir_walk(kern_pgdir, (void *) cur_addr, 0);
+        if ( !cur_pte || !(*cur_pte & PTE_P)) {
+            cprintf( "Virtual address [%08x] - not mapped\n", cur_addr);
+        } else {
+            cprintf( "Virtual address [0x%08x] - physical address [0x%08x], permission: ", cur_addr, PTE_ADDR(*cur_pte));
+            char perm_W = (*cur_pte & PTE_W) ? 'W':'-';
+            char perm_U = (*cur_pte & PTE_U) ? 'U':'-';
+            cprintf( "-----%c%cP\n",perm_U, perm_W);
+        }
+        cur_addr += PGSIZE;
+    }
+    return 0;
+}
+
