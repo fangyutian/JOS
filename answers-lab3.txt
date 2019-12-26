@@ -1,0 +1,19 @@
+1.
+ 每个异常和中断处理方式不同，例如 除0 异常不会返回程序继续执行，而 I/O 操作中断会返回程序继续执行。用一个handler难以实现。
+而且JOS的中断处理程序在真正处理之前要将中断号放入内核栈以组织trapframe的结构，同一个中断函数处理，就无法区分是哪个中断调用的，无法正确设置中断号。
+
+2.
+14号Page fault的调用权限是0，只能内核抛出，softint希望产生一个缺页异常（14），评判却是产生通用保护异常（13）General Protection，这是因为目前系统运行在用户态，权限是3，而int指令是系统指令，权限级别为0，会首先引发General Protection Excepetion。
+	把page fault权限改为3，QEMU成功抛出Page Fault，但是Page Fault中断时需要压入错误代码，而用户用int指令调用中断时不会压入错误代码。在trapentry.S中为Page Fault指定的中断处理程序默认系统放入错误码。结果就是栈中没有错误码。
+
+3.
+断点异常就是直接插入int3软件中断，而我们没有权限，需要在SETGATE的时候把权限设为3
+把表项中的DPL(段描述符优先级)字段设置为3，则会触发break point exception，如果设置为0，则会触发general protection exception。
+当前程序要小于等于DPL，否则就会出现优先级低的代码试图去访问优先级高的代码的情况，就会触发general protection exception。
+4.
+在inc/mmu.h中可以看到struct Gatedesc中有unsigned gd_dpl，优先级低的代码无法访问优先级高的，由gd_dpl判断，数字越小越高
+
+challenge1:
+函数指针
+
+

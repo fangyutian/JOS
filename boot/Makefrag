@@ -30,3 +30,4 @@ $(OBJDIR)/boot/boot: $(BOOT_OBJS)
 	$(V)$(OBJCOPY) -S -O binary -j .text $@.out $@
 	$(V)perl boot/sign.pl $(OBJDIR)/boot/boot
 
+
